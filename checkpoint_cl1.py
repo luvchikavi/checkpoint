@@ -108,7 +108,7 @@ if 'lca_data' not in st.session_state:
 historical_data, products, facilities = get_checkpoint_data()
 
 # Sidebar navigation
-st.sidebar.image("/Users/aviluvchik/app/CLIMATERIX/Checkpiont/streamlit/checkpiont_logo.png", 
+st.sidebar.image("checkpiont_logo.png", 
                  width=200)
 st.sidebar.markdown("---")
 st.sidebar.markdown("### Environmental Compliance Platform")
