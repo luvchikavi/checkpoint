@@ -1525,7 +1525,6 @@ elif "Financial Analysis" in page:
 st.markdown("---")
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    st.image("checkpiont_logo.png", width=200)
     st.markdown("""
     <div style='text-align: center; color: #666; padding: 20px;'>
         <p><strong>🛡️ Check Point Software Technologies Environmental Compliance Platform</strong></p>
