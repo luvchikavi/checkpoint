@@ -56,6 +56,9 @@ st.markdown("""
         border-radius: 8px;
         margin: 10px 0;
     }
+    h1, h2, h3 {
+        color: #000000;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -242,407 +245,579 @@ if "Dashboard" in page:
     with col2:
         st.subheader("Product Carbon Footprint")
         
-        fig = px.scatter(
+        fig = px.bar(
             products,
-            x='Annual_Units',
+            x='Product',
             y='GWP_per_unit',
-            size='Annual_Units',
             color='Status',
-            hover_data=['Product'],
             title='',
-            labels={'Annual_Units': 'Annual Units Sold', 'GWP_per_unit': 'GWP (kg CO₂e/unit)'},
-            color_discrete_map={'Compliant': '#4CAF50', 'In Progress': '#FFA726', 'Pending': '#EF5350'}
+            labels={'GWP_per_unit': 'kg CO₂e per unit'},
+            color_discrete_map={
+                'Compliant': '#4ECDC4',
+                'In Progress': '#FFA07A',
+                'Pending': '#FF6B6B'
+            }
         )
         fig.update_layout(height=350)
         st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
     
-    # Product Performance Table
-    st.subheader("Product Environmental Performance")
+    # Product Portfolio Table
+    st.subheader("Product Portfolio Overview")
     
-    products['Total_GWP'] = products['Annual_Units'] * products['GWP_per_unit']
     products_display = products.copy()
-    products_display['Total_GWP'] = products_display['Total_GWP'].apply(lambda x: f"{x:,.0f} kg CO₂e")
-    products_display['GWP_per_unit'] = products_display['GWP_per_unit'].apply(lambda x: f"{x:.1f}")
-    products_display['Annual_Units'] = products_display['Annual_Units'].apply(lambda x: f"{x:,}")
+    products_display['Total Annual Impact (tons CO₂e)'] = (
+        products_display['Annual_Units'] * products_display['GWP_per_unit'] / 1000
+    ).round(2)
     
-    st.dataframe(products_display, use_container_width=True, height=250)
+    st.dataframe(
+        products_display[['Product', 'Category', 'Annual_Units', 'GWP_per_unit', 
+                         'Total Annual Impact (tons CO₂e)', 'Status']],
+        use_container_width=True,
+        height=250
+    )
+    
+    st.markdown("---")
+    
+    # Action items
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.info("**🎯 Next Actions**\n- Update Harmony Endpoint EPD\n- Schedule Q2 audit\n- Review supplier data")
+    
+    with col2:
+        st.warning("**⚠️ Attention Required**\n- 2 products pending EPD\n- CBAM submission due in 14 days")
+    
+    with col3:
+        st.success("**✅ Achievements**\n- 12% emissions reduction YoY\n- 3 new EPDs published\n- 94% CBAM compliance")
 
 # ============================================
 # PAGE 2: LCA CALCULATOR
 # ============================================
 elif "LCA Calculator" in page:
     st.markdown('<div class="main-header">Life Cycle Assessment Calculator</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">Calculate environmental impact of cybersecurity products</div>', unsafe_allow_html=True)
-    
-    # Progress indicator
-    steps = ['Product Info', 'Materials & Components', 'Energy & Cloud', 'Transport & Logistics', 'Results']
-    current_step = st.session_state.lca_step
+    st.markdown('<div class="sub-header">Calculate environmental impacts across product lifecycle</div>', unsafe_allow_html=True)
     
     # Progress bar
-    progress_cols = st.columns(5)
-    for i, step in enumerate(steps, 1):
-        with progress_cols[i-1]:
-            if i < current_step:
-                st.success(f"COMPLETED: {step}")
-            elif i == current_step:
-                st.info(f"CURRENT: {step}")
-            else:
-                st.text(f"PENDING: {step}")
+    progress = st.session_state.lca_step / 5
+    st.progress(progress)
+    st.markdown(f"**Step {st.session_state.lca_step} of 5**")
     
     st.markdown("---")
     
     # Step 1: Product Information
-    if current_step == 1:
+    if st.session_state.lca_step == 1:
         st.subheader("Step 1: Product Information")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            product_name = st.text_input("Product Name", placeholder="e.g., Quantum 6500 Firewall")
+            product_name = st.text_input(
+                "Product Name",
+                value=st.session_state.lca_data.get('product_name', 'Quantum Firewall 5800'),
+                help="Enter the name of the product for LCA"
+            )
+            
             product_category = st.selectbox(
                 "Product Category",
-                ["Network Security Appliance", "Cloud Security Service", "Endpoint Security Software", 
-                 "Mobile Security App", "Security Management Platform"]
+                ['Network Security Hardware', 'Cloud Security Service', 'Endpoint Software', 
+                 'Unified Security Platform', 'Mobile Security App'],
+                index=0
             )
-            functional_unit = st.selectbox(
+            
+            functional_unit = st.text_input(
                 "Functional Unit",
-                ["1 device", "1 license", "1000 users/year", "1 rack unit", "1 software instance"]
+                value="1 unit (hardware appliance)",
+                help="Define how the product is measured (e.g., '1 unit', '1 license', '1000 users')"
             )
         
         with col2:
-            production_location = st.selectbox(
-                "Primary Production/Deployment Location",
-                ["Israel", "United States", "Singapore", "Europe (Germany)", "Global Distribution"]
+            reference_flow = st.number_input(
+                "Reference Flow Quantity",
+                min_value=1,
+                max_value=1000000,
+                value=1000,
+                help="Number of units for this assessment"
             )
-            expected_lifetime = st.number_input("Expected Lifetime (years)", min_value=1, max_value=20, value=5)
-            annual_volume = st.number_input("Annual Volume/Licenses", min_value=1, value=10000)
+            
+            product_lifetime = st.number_input(
+                "Expected Product Lifetime (years)",
+                min_value=1,
+                max_value=20,
+                value=5,
+                help="How long the product is expected to be used"
+            )
+            
+            geography = st.selectbox(
+                "Primary Manufacturing Location",
+                ['Israel', 'USA', 'Singapore', 'Germany', 'China', 'Global Average'],
+                index=0
+            )
         
-        st.markdown("---")
+        st.info("""
+        **💡 Tip:** For hardware products, specify physical materials. For software/cloud services, focus on infrastructure.
+        """)
         
         if st.button("Next: Materials & Components", use_container_width=True):
-            st.session_state.lca_data['step1'] = {
+            st.session_state.lca_data.update({
                 'product_name': product_name,
-                'category': product_category,
+                'product_category': product_category,
                 'functional_unit': functional_unit,
-                'location': production_location,
-                'lifetime': expected_lifetime,
-                'volume': annual_volume
-            }
+                'reference_flow': reference_flow,
+                'product_lifetime': product_lifetime,
+                'geography': geography
+            })
             st.session_state.lca_step = 2
             st.rerun()
     
-    # Step 2: Materials & Components
-    elif current_step == 2:
+    # Step 2: Materials & Components - WITH NEW DROPDOWN FEATURE
+    elif st.session_state.lca_step == 2:
         st.subheader("Step 2: Materials & Components")
         
-        st.info("For hardware products, specify physical materials. For software/cloud services, focus on infrastructure.")
+        st.info("""
+        For hardware products, specify physical materials. For software/cloud services, focus on infrastructure.
+        """)
         
-        # Material database search
-        st.markdown("#### Search Material Database")
-        material_search = st.text_input("Search materials (e.g., 'steel', 'printed circuit board', 'aluminum')")
+        st.markdown("### Search Material Database")
         
-        # Sample materials database
-        materials_db = {
-            'Steel, low-alloyed': {'gwp': 2.1, 'unit': 'kg', 'source': 'Ecoinvent'},
-            'Aluminum, primary': {'gwp': 11.5, 'unit': 'kg', 'source': 'Ecoinvent'},
-            'Printed Circuit Board (PCB)': {'gwp': 15.8, 'unit': 'kg', 'source': 'Ecoinvent'},
-            'Plastic, ABS': {'gwp': 3.4, 'unit': 'kg', 'source': 'Ecoinvent'},
-            'Copper': {'gwp': 4.2, 'unit': 'kg', 'source': 'Ecoinvent'},
-            'Glass fiber': {'gwp': 2.8, 'unit': 'kg', 'source': 'Ecoinvent'},
-            'Server (average)': {'gwp': 1200, 'unit': 'unit', 'source': 'ICT Sector'},
-            'Network Switch': {'gwp': 450, 'unit': 'unit', 'source': 'ICT Sector'},
+        # Material category dropdown - NEW FEATURE
+        material_categories = [
+            "All Categories",
+            "🔩 Metals (Steel, Aluminum, Copper)",
+            "🧪 Plastics & Polymers",
+            "💾 Electronics & PCB Components",
+            "🏗️ Concrete & Cement",
+            "🪟 Glass & Ceramics",
+            "🌳 Wood & Natural Materials",
+            "⚗️ Chemicals & Compounds",
+            "📦 Packaging Materials",
+            "🧵 Textiles & Fabrics"
+        ]
+        
+        selected_category = st.selectbox(
+            "Filter by Material Category",
+            material_categories,
+            key="material_category",
+            help="Select a category to filter materials, or choose 'All Categories' to search everything"
+        )
+        
+        # Show category description
+        if selected_category != "All Categories":
+            st.caption(f"📋 Showing materials in: **{selected_category.split(' ', 1)[1]}**")
+        
+        # Search materials
+        search_query = st.text_input(
+            "Search materials (e.g., 'steel', 'printed circuit board', 'aluminum')",
+            key="material_search",
+            help="Type to search across thousands of materials from Ecoinvent, ELCD, and US LCI databases"
+        )
+        
+        # Sample materials database with categories
+        sample_materials = {
+            "🔩 Metals (Steel, Aluminum, Copper)": [
+                {'name': 'Steel, low-alloyed, hot rolled', 'gwp': 2.1, 'unit': 'kg', 'database': 'Ecoinvent'},
+                {'name': 'Aluminum, primary, ingot', 'gwp': 11.5, 'unit': 'kg', 'database': 'Ecoinvent'},
+                {'name': 'Copper, primary, at refinery', 'gwp': 3.8, 'unit': 'kg', 'database': 'Ecoinvent'},
+            ],
+            "🧪 Plastics & Polymers": [
+                {'name': 'Polystyrene, high impact', 'gwp': 3.2, 'unit': 'kg', 'database': 'Ecoinvent'},
+                {'name': 'Polyethylene, high density', 'gwp': 1.9, 'unit': 'kg', 'database': 'Ecoinvent'},
+                {'name': 'ABS copolymer', 'gwp': 3.5, 'unit': 'kg', 'database': 'Ecoinvent'},
+            ],
+            "💾 Electronics & PCB Components": [
+                {'name': 'Printed circuit board, surface mounted', 'gwp': 15.2, 'unit': 'kg', 'database': 'Ecoinvent'},
+                {'name': 'Integrated circuit, logic type', 'gwp': 0.45, 'unit': 'piece', 'database': 'Ecoinvent'},
+                {'name': 'Capacitor, surface mounted', 'gwp': 0.02, 'unit': 'piece', 'database': 'Ecoinvent'},
+            ],
+            "🏗️ Concrete & Cement": [
+                {'name': 'Concrete, normal, at plant', 'gwp': 0.15, 'unit': 'kg', 'database': 'Ecoinvent'},
+                {'name': 'Portland cement', 'gwp': 0.92, 'unit': 'kg', 'database': 'US LCI'},
+            ],
+            "📦 Packaging Materials": [
+                {'name': 'Corrugated board', 'gwp': 0.55, 'unit': 'kg', 'database': 'Ecoinvent'},
+                {'name': 'Polyethylene film', 'gwp': 2.1, 'unit': 'kg', 'database': 'Ecoinvent'},
+            ]
         }
         
-        if material_search:
-            filtered = {k: v for k, v in materials_db.items() if material_search.lower() in k.lower()}
-            if filtered:
-                st.success(f"Found {len(filtered)} materials")
-                for material, data in filtered.items():
-                    col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+        # Filter materials based on category and search
+        filtered_materials = []
+        
+        for cat, materials in sample_materials.items():
+            # Filter by category
+            if selected_category == "All Categories" or selected_category == cat:
+                for mat in materials:
+                    # Filter by search query
+                    if not search_query or search_query.lower() in mat['name'].lower():
+                        filtered_materials.append({
+                            'Category': cat,
+                            'Material': mat['name'],
+                            'GWP': f"{mat['gwp']} kg CO₂e/{mat['unit']}",
+                            'Database': mat['database'],
+                            'gwp_value': mat['gwp'],
+                            'unit': mat['unit']
+                        })
+        
+        if filtered_materials:
+            st.markdown(f"**Found {len(filtered_materials)} materials**")
+            
+            # Display materials as expandable sections
+            for idx, mat in enumerate(filtered_materials):
+                with st.expander(f"**{mat['Material']}** - {mat['GWP']}"):
+                    col1, col2, col3 = st.columns([2, 1, 1])
+                    
                     with col1:
-                        st.text(material)
+                        st.write(f"**Category:** {mat['Category']}")
+                        st.write(f"**Database:** {mat['Database']}")
+                    
                     with col2:
-                        st.text(f"{data['gwp']} kg CO₂e")
+                        quantity = st.number_input(
+                            "Quantity",
+                            min_value=0.0,
+                            value=1.0,
+                            key=f"qty_{idx}",
+                            help=f"Enter quantity in {mat['unit']}"
+                        )
+                    
                     with col3:
-                        st.text(f"per {data['unit']}")
-                    with col4:
-                        if st.button("Add", key=f"add_{material}"):
+                        st.write(f"**Unit:** {mat['unit']}")
+                        if st.button("Add", key=f"add_{idx}"):
                             if 'materials' not in st.session_state.lca_data:
                                 st.session_state.lca_data['materials'] = []
                             st.session_state.lca_data['materials'].append({
-                                'name': material,
-                                'gwp': data['gwp'],
-                                'quantity': 1,
-                                'unit': data['unit']
+                                'name': mat['Material'],
+                                'quantity': quantity,
+                                'unit': mat['unit'],
+                                'gwp': mat['gwp_value'],
+                                'total_gwp': mat['gwp_value'] * quantity
                             })
+                            st.success(f"Added {quantity} {mat['unit']} of {mat['Material']}")
                             st.rerun()
-        
-        st.markdown("---")
-        
-        # Display added materials
-        if 'materials' in st.session_state.lca_data and st.session_state.lca_data['materials']:
-            st.markdown("#### Added Materials")
-            for i, material in enumerate(st.session_state.lca_data['materials']):
-                col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
-                with col1:
-                    st.text(material['name'])
-                with col2:
-                    quantity = st.number_input(
-                        f"Quantity ({material['unit']})",
-                        min_value=0.1,
-                        value=float(material['quantity']),
-                        key=f"qty_{i}"
-                    )
-                    st.session_state.lca_data['materials'][i]['quantity'] = quantity
-                with col3:
-                    impact = material['gwp'] * quantity
-                    st.metric("Impact", f"{impact:.1f} kg CO₂e")
-                with col4:
-                    if st.button("Delete", key=f"del_{i}"):
-                        st.session_state.lca_data['materials'].pop(i)
-                        st.rerun()
-            
-            total_materials = sum(m['gwp'] * m['quantity'] for m in st.session_state.lca_data['materials'])
-            st.info(f"**Total Materials Impact: {total_materials:.1f} kg CO₂e**")
         else:
-            st.warning("No materials added yet. Search and add materials above.")
+            st.warning("No materials found. Try adjusting your search or category filter.")
+        
+        # Display selected materials
+        if 'materials' in st.session_state.lca_data and st.session_state.lca_data['materials']:
+            st.markdown("---")
+            st.markdown("### Selected Materials")
+            
+            materials_df = pd.DataFrame(st.session_state.lca_data['materials'])
+            st.dataframe(materials_df, use_container_width=True)
+            
+            total_gwp = materials_df['total_gwp'].sum()
+            st.metric("Total Materials Impact", f"{total_gwp:.2f} kg CO₂e")
+            
+            if st.button("Clear All Materials"):
+                st.session_state.lca_data['materials'] = []
+                st.rerun()
         
         st.markdown("---")
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Back", use_container_width=True):
+            if st.button("← Previous: Product Info", use_container_width=True):
                 st.session_state.lca_step = 1
                 st.rerun()
+        
         with col2:
-            if st.button("Next: Energy & Cloud", use_container_width=True):
+            if st.button("Next: Energy & Manufacturing →", use_container_width=True):
                 st.session_state.lca_step = 3
                 st.rerun()
     
-    # Step 3: Energy & Cloud Infrastructure
-    elif current_step == 3:
-        st.subheader("Step 3: Energy & Cloud Infrastructure")
-        
-        st.info("Specify energy consumption for manufacturing, operation, and cloud services.")
+    # Step 3: Energy & Manufacturing
+    elif st.session_state.lca_step == 3:
+        st.subheader("Step 3: Energy & Manufacturing")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("#### Manufacturing Energy")
-            manufacturing_energy = st.number_input("Manufacturing Energy (kWh)", min_value=0.0, value=150.0)
-            energy_grid_factor = st.selectbox(
-                "Grid Emission Factor",
-                ["Israel (0.52 kg CO₂e/kWh)", "EU Average (0.38 kg CO₂e/kWh)", 
-                 "US Average (0.42 kg CO₂e/kWh)", "Renewable (0.05 kg CO₂e/kWh)"]
+            st.markdown("#### Electricity Consumption")
+            
+            electricity_kwh = st.number_input(
+                "Manufacturing Electricity (kWh per unit)",
+                min_value=0.0,
+                value=150.0,
+                help="Total electricity used in manufacturing per unit"
             )
             
-            st.markdown("#### Operational Energy (per year)")
-            operational_energy = st.number_input("Device/Service Energy Consumption (kWh/year)", min_value=0.0, value=500.0)
-            use_phase_years = st.number_input("Use Phase Duration (years)", min_value=1, max_value=20, value=5)
+            grid_emission_factor = st.number_input(
+                "Grid Emission Factor (kg CO₂e/kWh)",
+                min_value=0.0,
+                value=0.45,
+                help="Depends on location. Israel: ~0.55, EU avg: ~0.3, US avg: ~0.4"
+            )
+            
+            renewable_percent = st.slider(
+                "Renewable Energy %",
+                min_value=0,
+                max_value=100,
+                value=25,
+                help="Percentage of electricity from renewable sources"
+            )
         
         with col2:
-            st.markdown("#### Cloud Infrastructure")
-            cloud_based = st.checkbox("Cloud-based service?", value=True)
+            st.markdown("#### Other Energy Sources")
             
-            if cloud_based:
-                cloud_provider = st.selectbox(
-                    "Cloud Provider",
-                    ["AWS", "Azure", "Google Cloud", "Private Cloud"]
-                )
-                cloud_region = st.selectbox(
-                    "Primary Region",
-                    ["US East", "EU West", "Asia Pacific", "Middle East"]
-                )
-                compute_hours = st.number_input("Annual Compute Hours", min_value=0, value=8760)
-                storage_tb = st.number_input("Storage (TB)", min_value=0.0, value=10.0)
-                
-                # Calculate cloud emissions
-                cloud_emission_factor = 0.25  # kg CO₂e per compute hour (average)
-                storage_emission_factor = 0.02  # kg CO₂e per TB per year
-                
-                cloud_emissions = (compute_hours * cloud_emission_factor) + (storage_tb * storage_emission_factor)
-                st.metric("Estimated Cloud Emissions", f"{cloud_emissions:.1f} kg CO₂e/year")
+            natural_gas_kwh = st.number_input(
+                "Natural Gas (kWh per unit)",
+                min_value=0.0,
+                value=50.0
+            )
+            
+            diesel_liters = st.number_input(
+                "Diesel/Fuel (liters per unit)",
+                min_value=0.0,
+                value=2.0
+            )
+            
+            process_heat = st.number_input(
+                "Process Heat/Steam (MJ per unit)",
+                min_value=0.0,
+                value=500.0
+            )
         
-        # Calculate energy emissions
-        grid_factors = {
-            "Israel (0.52 kg CO₂e/kWh)": 0.52,
-            "EU Average (0.38 kg CO₂e/kWh)": 0.38,
-            "US Average (0.42 kg CO₂e/kWh)": 0.42,
-            "Renewable (0.05 kg CO₂e/kWh)": 0.05
-        }
+        # Calculate energy impacts
+        electricity_impact = electricity_kwh * grid_emission_factor * (1 - renewable_percent/100)
+        gas_impact = natural_gas_kwh * 0.2  # ~0.2 kg CO₂e/kWh for natural gas
+        diesel_impact = diesel_liters * 2.7  # ~2.7 kg CO₂e/liter
+        heat_impact = process_heat * 0.06  # ~0.06 kg CO₂e/MJ
         
-        factor = grid_factors[energy_grid_factor]
-        manufacturing_emissions = manufacturing_energy * factor
-        operational_emissions = operational_energy * factor * use_phase_years
-        
-        st.session_state.lca_data['energy'] = {
-            'manufacturing': manufacturing_emissions,
-            'operational': operational_emissions,
-            'cloud': cloud_emissions if cloud_based else 0
-        }
+        total_energy_impact = electricity_impact + gas_impact + diesel_impact + heat_impact
         
         st.markdown("---")
         
-        st.success(f"""
-        **Energy Impact Summary:**
-        - Manufacturing: {manufacturing_emissions:.1f} kg CO₂e
-        - Operational ({use_phase_years} years): {operational_emissions:.1f} kg CO₂e
-        - Cloud Infrastructure: {cloud_emissions if cloud_based else 0:.1f} kg CO₂e/year
-        """)
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Electricity Impact", f"{electricity_impact:.2f} kg CO₂e")
+        with col2:
+            st.metric("Natural Gas", f"{gas_impact:.2f} kg CO₂e")
+        with col3:
+            st.metric("Diesel/Fuel", f"{diesel_impact:.2f} kg CO₂e")
+        with col4:
+            st.metric("Process Heat", f"{heat_impact:.2f} kg CO₂e")
+        
+        st.metric("**Total Energy Impact**", f"{total_energy_impact:.2f} kg CO₂e", 
+                 delta=f"{(total_energy_impact/300)*100:.1f}% of typical product")
+        
+        st.markdown("---")
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Back", use_container_width=True):
+            if st.button("← Previous: Materials", use_container_width=True):
                 st.session_state.lca_step = 2
                 st.rerun()
+        
         with col2:
-            if st.button("Next: Transport & Logistics", use_container_width=True):
+            if st.button("Next: Transport & Distribution →", use_container_width=True):
+                st.session_state.lca_data['energy_impact'] = total_energy_impact
                 st.session_state.lca_step = 4
                 st.rerun()
     
-    # Step 4: Transport & Logistics
-    elif current_step == 4:
-        st.subheader("Step 4: Transport & Logistics")
+    # Step 4: Transport & Distribution
+    elif st.session_state.lca_step == 4:
+        st.subheader("Step 4: Transport & Distribution")
         
-        st.info("Specify transportation for materials, products, and distribution.")
+        st.info("Specify transportation from manufacturing to end customer")
         
-        col1, col2 = st.columns(2)
+        # Inbound logistics (materials to factory)
+        st.markdown("#### Inbound Logistics (Materials → Factory)")
+        
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("#### Supply Chain Transport")
-            supplier_distance = st.number_input("Average Supplier Distance (km)", min_value=0, value=2000)
-            transport_mode_supply = st.selectbox(
-                "Transport Mode (Suppliers)",
-                ["Air Freight", "Sea Freight", "Road (Truck)", "Rail"]
-            )
-            
-            st.markdown("#### Product Distribution")
-            distribution_distance = st.number_input("Average Distribution Distance (km)", min_value=0, value=1500)
-            transport_mode_dist = st.selectbox(
-                "Transport Mode (Distribution)",
-                ["Air Freight", "Sea Freight", "Road (Truck)", "Rail"],
-                key="dist_mode"
+            inbound_distance = st.number_input(
+                "Average Distance (km)",
+                min_value=0,
+                value=500,
+                key="inbound_dist"
             )
         
         with col2:
-            st.markdown("#### Emission Factors (kg CO₂e per ton-km)")
-            
-            emission_factors = {
-                "Air Freight": 1.2,
-                "Sea Freight": 0.015,
-                "Road (Truck)": 0.12,
-                "Rail": 0.03
-            }
-            
-            # Calculate transport emissions
-            product_weight = st.number_input("Product Weight (kg)", min_value=0.1, value=5.0)
-            
-            supply_emissions = (supplier_distance * (product_weight/1000) * emission_factors[transport_mode_supply])
-            dist_emissions = (distribution_distance * (product_weight/1000) * emission_factors[transport_mode_dist])
-            
-            st.metric("Supply Chain Transport", f"{supply_emissions:.2f} kg CO₂e")
-            st.metric("Distribution Transport", f"{dist_emissions:.2f} kg CO₂e")
-            
-            total_transport = supply_emissions + dist_emissions
-            st.info(f"**Total Transport Emissions: {total_transport:.2f} kg CO₂e**")
+            inbound_mode = st.selectbox(
+                "Transport Mode",
+                ['Truck', 'Rail', 'Ship', 'Air'],
+                key="inbound_mode"
+            )
         
-        st.session_state.lca_data['transport'] = {
-            'supply_chain': supply_emissions,
-            'distribution': dist_emissions,
-            'total': total_transport
+        with col3:
+            inbound_weight = st.number_input(
+                "Total Weight (kg)",
+                min_value=0.0,
+                value=50.0,
+                key="inbound_weight"
+            )
+        
+        # Emission factors (kg CO₂e per ton-km)
+        emission_factors = {
+            'Truck': 0.062,
+            'Rail': 0.022,
+            'Ship': 0.008,
+            'Air': 0.602
         }
+        
+        inbound_impact = (inbound_distance * inbound_weight / 1000) * emission_factors[inbound_mode]
+        
+        st.markdown("---")
+        
+        # Outbound logistics (factory to customer)
+        st.markdown("#### Outbound Logistics (Factory → Customer)")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            outbound_distance = st.number_input(
+                "Average Distance (km)",
+                min_value=0,
+                value=2000,
+                key="outbound_dist"
+            )
+        
+        with col2:
+            outbound_mode = st.selectbox(
+                "Transport Mode",
+                ['Truck', 'Rail', 'Ship', 'Air'],
+                index=3,
+                key="outbound_mode"
+            )
+        
+        with col3:
+            outbound_weight = st.number_input(
+                "Product Weight (kg)",
+                min_value=0.0,
+                value=25.0,
+                key="outbound_weight"
+            )
+        
+        outbound_impact = (outbound_distance * outbound_weight / 1000) * emission_factors[outbound_mode]
+        
+        total_transport_impact = inbound_impact + outbound_impact
+        
+        st.markdown("---")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Inbound Transport", f"{inbound_impact:.2f} kg CO₂e")
+        with col2:
+            st.metric("Outbound Transport", f"{outbound_impact:.2f} kg CO₂e")
+        with col3:
+            st.metric("**Total Transport**", f"{total_transport_impact:.2f} kg CO₂e")
+        
+        st.info(f"""
+        **💡 Transport Optimization:**
+        - Switching outbound from {outbound_mode} to Ship could save {outbound_impact - (outbound_distance * outbound_weight / 1000) * emission_factors['Ship']:.2f} kg CO₂e
+        - Rail transport is 65% lower emissions than truck
+        """)
         
         st.markdown("---")
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Back", use_container_width=True):
+            if st.button("← Previous: Energy", use_container_width=True):
                 st.session_state.lca_step = 3
                 st.rerun()
+        
         with col2:
-            if st.button("Calculate Results", use_container_width=True):
+            if st.button("Calculate Results →", use_container_width=True):
+                st.session_state.lca_data['transport_impact'] = total_transport_impact
                 st.session_state.lca_step = 5
                 st.rerun()
     
     # Step 5: Results
-    elif current_step == 5:
+    elif st.session_state.lca_step == 5:
         st.subheader("Step 5: LCA Results")
         
-        # Calculate total impact
-        materials_total = sum(m['gwp'] * m['quantity'] for m in st.session_state.lca_data.get('materials', []))
-        energy_total = sum(st.session_state.lca_data.get('energy', {}).values())
-        transport_total = st.session_state.lca_data.get('transport', {}).get('total', 0)
+        # Calculate total impacts
+        materials_impact = sum(m['total_gwp'] for m in st.session_state.lca_data.get('materials', []))
+        energy_impact = st.session_state.lca_data.get('energy_impact', 0)
+        transport_impact = st.session_state.lca_data.get('transport_impact', 0)
         
-        total_gwp = materials_total + energy_total + transport_total
+        # Estimate use phase and end-of-life (simplified)
+        use_phase_impact = energy_impact * 0.3  # Rough estimate
+        eol_impact = materials_impact * 0.05  # Rough estimate
+        
+        total_impact = materials_impact + energy_impact + transport_impact + use_phase_impact + eol_impact
         
         # Display results
-        st.success(f"## Total Global Warming Potential: {total_gwp:.1f} kg CO₂e")
+        st.markdown("### Global Warming Potential (GWP)")
         
-        # Results breakdown
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
-            st.metric("Materials", f"{materials_total:.1f} kg CO₂e", 
-                     f"{(materials_total/total_gwp*100):.1f}%")
+            st.metric("Materials (A1-A3)", f"{materials_impact:.2f}", 
+                     f"{(materials_impact/total_impact*100):.1f}%")
         
         with col2:
-            st.metric("Energy", f"{energy_total:.1f} kg CO₂e",
-                     f"{(energy_total/total_gwp*100):.1f}%")
+            st.metric("Manufacturing (A3)", f"{energy_impact:.2f}",
+                     f"{(energy_impact/total_impact*100):.1f}%")
         
         with col3:
-            st.metric("Transport", f"{transport_total:.1f} kg CO₂e",
-                     f"{(transport_total/total_gwp*100):.1f}%")
+            st.metric("Transport (A4)", f"{transport_impact:.2f}",
+                     f"{(transport_impact/total_impact*100):.1f}%")
         
         with col4:
-            # Compare to benchmark
-            benchmark = 250  # kg CO₂e (industry average)
-            diff = ((total_gwp - benchmark) / benchmark * 100)
-            st.metric("vs Industry Avg", f"{abs(diff):.1f}%",
-                     f"{'Better' if diff < 0 else 'Worse'}")
+            st.metric("Use Phase (B1)", f"{use_phase_impact:.2f}",
+                     f"{(use_phase_impact/total_impact*100):.1f}%")
+        
+        with col5:
+            st.metric("End of Life (C)", f"{eol_impact:.2f}",
+                     f"{(eol_impact/total_impact*100):.1f}%")
         
         st.markdown("---")
+        
+        st.metric("**Total Product Carbon Footprint**", 
+                 f"{total_impact:.2f} kg CO₂e per {st.session_state.lca_data.get('functional_unit', 'unit')}")
         
         # Visualization
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("#### Impact Breakdown by Life Cycle Stage")
+            st.markdown("#### Impact by Life Cycle Stage")
             
-            stages_data = pd.DataFrame({
-                'Stage': ['Raw Materials', 'Manufacturing', 'Transport', 'Use Phase', 'End of Life'],
-                'Impact': [
-                    materials_total * 0.7,
-                    st.session_state.lca_data.get('energy', {}).get('manufacturing', 0),
-                    transport_total,
-                    st.session_state.lca_data.get('energy', {}).get('operational', 0),
-                    materials_total * 0.1
-                ]
+            stages_df = pd.DataFrame({
+                'Stage': ['Materials\n(A1-A3)', 'Manufacturing\n(A3)', 'Transport\n(A4)', 'Use Phase\n(B1)', 'End of Life\n(C)'],
+                'Impact (kg CO₂e)': [materials_impact, energy_impact, transport_impact, use_phase_impact, eol_impact]
             })
             
-            fig = px.bar(stages_data, x='Stage', y='Impact', 
-                        title='', 
-                        color='Impact',
-                        color_continuous_scale='RdYlGn_r')
-            fig.update_layout(height=350, showlegend=False)
+            fig = px.bar(stages_df, x='Stage', y='Impact (kg CO₂e)', 
+                        color='Impact (kg CO₂e)',
+                        color_continuous_scale='Reds')
+            fig.update_layout(height=350)
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            st.markdown("#### Benchmarking")
+            st.markdown("#### Impact Distribution")
             
-            benchmark_data = pd.DataFrame({
-                'Category': ['Your Product', 'Industry Average', 'Best in Class', 'Regulatory Limit'],
-                'GWP': [total_gwp, 250, 180, 400],
-                'Type': ['You', 'Reference', 'Reference', 'Reference']
-            })
-            
-            fig = px.bar(benchmark_data, x='Category', y='GWP',
-                        title='',
-                        color='Type',
-                        color_discrete_map={'You': '#E4002B', 'Reference': '#CCCCCC'})
-            fig.update_layout(height=350, showlegend=False)
+            fig = go.Figure(data=[go.Pie(
+                labels=['Materials', 'Manufacturing', 'Transport', 'Use Phase', 'End of Life'],
+                values=[materials_impact, energy_impact, transport_impact, use_phase_impact, eol_impact],
+                hole=0.4
+            )])
+            fig.update_layout(height=350)
             st.plotly_chart(fig, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # Industry benchmark
+        st.markdown("#### Industry Benchmarking")
+        
+        benchmarks = {
+            'Your Product': total_impact,
+            'Industry Average': 320,
+            'Best in Class': 180,
+            'Regulatory Limit': 400
+        }
+        
+        for label, value in benchmarks.items():
+            st.markdown(f"**{label}:** {value:.1f} kg CO₂e")
+            progress_val = min(value / 500, 1.0)
+            st.progress(progress_val)
+        
+        if total_impact < benchmarks['Industry Average']:
+            st.success(f"✅ Your product performs {((benchmarks['Industry Average'] - total_impact)/benchmarks['Industry Average']*100):.1f}% better than industry average!")
+        else:
+            st.warning(f"⚠️ Your product is {((total_impact - benchmarks['Industry Average'])/benchmarks['Industry Average']*100):.1f}% above industry average")
         
         st.markdown("---")
         
@@ -651,22 +826,29 @@ elif "LCA Calculator" in page:
         
         with col1:
             if st.button("Generate EPD Document", use_container_width=True):
-                st.success("EPD document generated! Check EPD Generator tab.")
+                st.success("EPD document generated! (Would download in production)")
         
         with col2:
             if st.button("Submit for Verification", use_container_width=True):
-                st.info("Submission sent to EPD Hub for verification.")
+                st.info("Submitted to verification body (Would integrate with EPD Hub API)")
         
         with col3:
             if st.button("Export Results (Excel)", use_container_width=True):
-                st.success("Results exported to checkpoint_lca_results.xlsx")
+                st.success("Results exported to Excel!")
         
         st.markdown("---")
         
-        if st.button("Start New Calculation", use_container_width=True):
-            st.session_state.lca_step = 1
-            st.session_state.lca_data = {}
-            st.rerun()
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("← Previous: Transport", use_container_width=True):
+                st.session_state.lca_step = 4
+                st.rerun()
+        
+        with col2:
+            if st.button("Start New Assessment", use_container_width=True):
+                st.session_state.lca_step = 1
+                st.session_state.lca_data = {}
+                st.rerun()
 
 # ============================================
 # PAGE 3: EPD GENERATOR
@@ -675,465 +857,433 @@ elif "EPD Generator" in page:
     st.markdown('<div class="main-header">EPD Generator</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Create Environmental Product Declarations</div>', unsafe_allow_html=True)
     
-    # EPD Project Management
+    st.info("""
+    **Environmental Product Declaration (EPD)** is a standardized document that communicates 
+    transparent and comparable information about the life-cycle environmental impact of products.
+    """)
+    
+    # EPD Project Selection
     st.markdown("### Active EPD Projects")
     
     epd_projects = pd.DataFrame({
-        'Project ID': ['EPD-001', 'EPD-002', 'EPD-003', 'EPD-004', 'EPD-005'],
-        'Product': ['Quantum 6500', 'CloudGuard SaaS', 'Harmony Endpoint', 'Mobile Security', 'Infinity Platform'],
-        'Status': ['Verified', 'In Verification', 'Draft', 'Verified', 'In Progress'],
-        'Progress': [100, 75, 30, 100, 60],
-        'Created': ['2024-01-15', '2024-08-20', '2024-10-01', '2023-11-10', '2024-09-15'],
-        'Valid Until': ['2029-01-15', '2029-08-20', '-', '2028-11-10', '-']
+        'Project': ['Quantum 5800 Firewall', 'CloudGuard Platform', 'Harmony Endpoint v5', 'Infinity Gateway'],
+        'Status': ['In Progress', 'Verified', 'Draft', 'Pending Review'],
+        'Progress': [75, 100, 30, 60],
+        'PCR': ['UN CPC 452 - Hardware', 'UN CPC 8441 - Cloud', 'UN CPC 8441 - Software', 'UN CPC 452 - Hardware'],
+        'Verifier': ['EPD Hub', 'IBU', 'EPD International', 'UL'],
+        'Due Date': ['2024-03-15', '2024-01-20', '2024-04-30', '2024-02-28']
     })
     
-    # Color code status
-    def color_status(val):
-        if val == 'Verified':
-            return 'background-color: #d4edda'
-        elif val == 'In Verification':
-            return 'background-color: #fff3cd'
-        elif val == 'In Progress':
-            return 'background-color: #cce5ff'
-        else:
-            return 'background-color: #f8f9fa'
-    
-    styled_df = epd_projects.style.applymap(color_status, subset=['Status'])
-    st.dataframe(styled_df, use_container_width=True, height=250)
+    for idx, row in epd_projects.iterrows():
+        with st.expander(f"**{row['Project']}** - {row['Status']} ({row['Progress']}%)"):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.write(f"**PCR:** {row['PCR']}")
+                st.write(f"**Verifier:** {row['Verifier']}")
+            
+            with col2:
+                st.write(f"**Due Date:** {row['Due Date']}")
+                st.progress(row['Progress'] / 100)
+            
+            with col3:
+                if st.button(f"Open Project", key=f"open_{idx}"):
+                    st.info("Opening EPD project...")
     
     st.markdown("---")
     
-    # Create New EPD
-    col1, col2 = st.columns([2, 1])
+    # Create new EPD
+    st.markdown("### Create New EPD")
+    
+    col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### Create New EPD")
-        
         new_product = st.selectbox(
             "Select Product",
-            ["Quantum 6500 Firewall", "Quantum 9800", "CloudGuard Posture", "Harmony Email", "New Product..."]
+            ['Quantum Firewall 5800', 'CloudGuard', 'Harmony Endpoint', 'Infinity Platform', 'Mobile Security']
         )
         
-        pcr_standard = st.selectbox(
-            "PCR Standard",
-            ["EN 15804+A2 (Construction Products)",
-             "ISO 14025 (General Products)",
-             "ITU-T L.1410 (ICT Goods & Services)",
-             "Custom PCR"]
-        )
-        
-        verification_body = st.selectbox(
-            "Verification Body",
-            ["EPD Hub", "EPD International", "IBU (Germany)", "UL Solutions", "NSF International"]
+        pcr_selection = st.selectbox(
+            "Product Category Rules (PCR)",
+            ['UN CPC 452 - Network Hardware', 'UN CPC 8441 - Cloud Services', 
+             'UN CPC 8441 - Software Products', 'EN 15804 - Construction Products']
         )
     
     with col2:
-        st.markdown("### EPD Statistics")
-        st.metric("Total EPDs", "15", "+3 this year")
-        st.metric("Verified EPDs", "8", "53%")
-        st.metric("Avg. Verification Time", "3.2 weeks")
+        program_operator = st.selectbox(
+            "EPD Program Operator",
+            ['EPD Hub (Fastest, Digital)', 'EPD International (Most Recognized)', 
+             'IBU (European Focus)', 'UL Solutions (North America)']
+        )
+        
+        verification_type = st.selectbox(
+            "Verification Type",
+            ['Third-party verified', 'Self-declared (Type II)', 'Industry-average']
+        )
     
     if st.button("Create EPD Project", use_container_width=True):
-        st.success(f"EPD project created for {new_product}!")
-        st.info("Next steps: Complete LCA calculation → Upload supporting documents → Submit for verification")
+        st.success(f"EPD project created for {new_product}! Starting data collection...")
     
     st.markdown("---")
     
     # EPD Template Preview
-    st.markdown("### EPD Document Preview")
+    st.markdown("### EPD Document Structure Preview")
     
-    with st.expander("View Sample EPD Structure"):
+    with st.expander("📄 View Standard EPD Template"):
         st.markdown("""
-        **Environmental Product Declaration**
+        **EPD Document Sections (ISO 14025, EN 15804):**
         
-        **Product:** Quantum 6500 Network Security Appliance  
-        **Manufacturer:** Check Point Software Technologies Ltd.  
-        **Declaration Number:** EPD-CHKP-001-2024  
-        **Valid Until:** January 2029  
-        
-        ---
-        
-        **1. Product Information**
-        - Product Name: Quantum 6500
-        - Category: Network Security Appliance
-        - Functional Unit: 1 device (5-year lifetime)
-        - Production Location: Israel & Global Assembly
-        
-        **2. LCA Information**
-        - PCR Used: ITU-T L.1410 (ICT Equipment)
-        - LCA Method: ISO 14040/14044
-        - System Boundary: Cradle-to-gate + Use phase
-        - Data Quality: Primary data (85%), Secondary data (15%)
-        
-        **3. Environmental Impacts**
-        
-        | Impact Category | Value | Unit |
-        |----------------|-------|------|
-        | Global Warming Potential (GWP) | 245.5 | kg CO₂e |
-        | Acidification Potential (AP) | 1.24 | kg SO₂e |
-        | Eutrophication Potential (EP) | 0.89 | kg PO₄e |
-        | Ozone Depletion Potential (ODP) | 0.0012 | kg CFC-11e |
-        | Water Use | 450 | m³ |
-        
-        **4. Life Cycle Stages (A1-C4)**
-        - A1-A3 (Production): 120 kg CO₂e
-        - A4 (Transport): 30 kg CO₂e
-        - B1-B7 (Use Phase): 85 kg CO₂e
-        - C1-C4 (End of Life): 10.5 kg CO₂e
-        
-        **5. Additional Information**
-        - Hazardous Substances: Compliant with RoHS
-        - Recyclability: 78% by weight
-        - Energy Efficiency: ENERGY STAR certified
-        
-        **6. Verification**
-        - Verified by: EPD Hub
-        - Verification Date: January 15, 2024
-        - Program Operator: EPD International
+        1. **General Information**
+           - Product name and description
+           - Manufacturer details
+           - Declaration number and validity
+           
+        2. **Product Information**
+           - Technical specifications
+           - Declared/functional unit
+           - Reference service life
+           
+        3. **LCA Information**
+           - PCR used
+           - System boundaries
+           - Data quality
+           - Cut-off rules
+           
+        4. **LCA Results**
+           - Global Warming Potential (GWP)
+           - Ozone Depletion Potential (ODP)
+           - Acidification Potential (AP)
+           - Eutrophication Potential (EP)
+           - Photochemical Ozone Creation Potential (POCP)
+           - Abiotic Depletion Potential (ADP)
+           
+        5. **Life Cycle Stages**
+           - A1-A3: Product stage
+           - A4-A5: Construction
+           - B1-B7: Use stage
+           - C1-C4: End of life
+           - D: Benefits beyond system boundary
+           
+        6. **Additional Information**
+           - Material composition
+           - Hazardous substances
+           - Environmental management
+           
+        7. **Verification Statement**
+           - Verifier information
+           - Independence statement
+           - Date and signature
         """)
     
     st.markdown("---")
     
+    # Integration with verification
+    st.markdown("### Verification Partners (API Integrated)")
+    
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("Download EPD Template", use_container_width=True):
-            st.success("EPD template downloaded!")
-    
+        st.markdown("#### EPD Hub")
+        st.image("https://via.placeholder.com/150x80/E4002B/FFFFFF?text=EPD+Hub", use_container_width=True)
+        st.write("✅ Digital workflow")
+        st.write("✅ 2-3 week turnaround")
+        st.write("✅ Pre-verification tools")
+        
     with col2:
-        if st.button("Upload Supporting Docs", use_container_width=True):
-            st.info("Document upload interface opened")
+        st.markdown("#### EPD International")
+        st.image("https://via.placeholder.com/150x80/4ECDC4/FFFFFF?text=EPD+Intl", use_container_width=True)
+        st.write("✅ Most recognized")
+        st.write("✅ 100+ PCRs")
+        st.write("✅ Global verifier network")
     
     with col3:
-        if st.button("Sync with EPD Hub API", use_container_width=True):
-            st.success("Synced with EPD Hub!")
+        st.markdown("#### IBU Germany")
+        st.image("https://via.placeholder.com/150x80/45B7D1/FFFFFF?text=IBU", use_container_width=True)
+        st.write("✅ European focus")
+        st.write("✅ EN 15804 compliant")
+        st.write("✅ ECO Platform member")
 
 # ============================================
 # PAGE 4: OPERATIONS DECISION TOOL
 # ============================================
 elif "Operations Decision Tool" in page:
-    st.markdown('<div class="main-header">Operations Decision Tool</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">GHG Reduction Scenario Modeling & Strategic Planning</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">Operations Decision Support Tool</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">Scenario analysis for emissions reduction initiatives</div>', unsafe_allow_html=True)
     
-    # Baseline emissions
-    st.markdown("### Current Baseline (2024)")
+    st.info("""
+    **AI-Powered Decision Support:** Evaluate and compare different operational scenarios 
+    to optimize both environmental impact and business outcomes.
+    """)
     
-    baseline = {
-        'Data Centers': 106000,
-        'Cloud Infrastructure': 45000,
-        'Office Buildings': 36000,
-        'Employee Commute': 15600,
-        'Business Travel': 35000,
-        'Software Development': 23000
-    }
-    
-    baseline_total = sum(baseline.values())
+    # Current baseline
+    st.markdown("### Current Baseline")
     
     col1, col2, col3, col4 = st.columns(4)
+    
     with col1:
-        st.metric("Total Emissions", f"{baseline_total:,} tons CO₂e")
+        st.metric("Annual Emissions", "234,560 tons CO₂e")
     with col2:
-        st.metric("Per Employee", f"{baseline_total/7000:.1f} tons CO₂e")
+        st.metric("Energy Cost", "€28.5M/year")
     with col3:
-        st.metric("Per Revenue ($M)", f"{baseline_total/2500:.1f} tons CO₂e/$M")
+        st.metric("Carbon Cost (€100/ton)", "€23.5M/year")
     with col4:
-        st.metric("Target Reduction", "30% by 2030")
+        st.metric("Total Cost", "€52M/year")
     
     st.markdown("---")
     
-    # Scenario Builder
-    st.markdown("### Build Your Reduction Scenario")
-    st.info("Adjust the sliders below to model different emission reduction strategies")
+    # Scenario builder
+    st.markdown("### Build Scenarios")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("#### Energy Transition")
+        st.markdown("#### Initiative Selection")
         
-        renewable_data_centers = st.slider(
-            "Renewable Energy for Data Centers (%)",
-            min_value=0, max_value=100, value=35, step=5,
-            help="Transition to renewable energy sources"
-        )
-        
-        renewable_offices = st.slider(
-            "Renewable Energy for Offices (%)",
-            min_value=0, max_value=100, value=45, step=5
-        )
-        
-        server_efficiency = st.slider(
-            "Server Efficiency Improvement (%)",
-            min_value=0, max_value=50, value=15, step=5,
-            help="Upgrade to more efficient servers"
-        )
-        
-        cooling_optimization = st.slider(
-            "Cooling System Optimization (%)",
-            min_value=0, max_value=40, value=20, step=5,
-            help="Improve PUE (Power Usage Effectiveness)"
-        )
+        initiatives = {
+            'Renewable Energy (50% of grid)': {
+                'reduction': 35000,
+                'cost': 12000000,
+                'payback': 6,
+                'selected': st.checkbox('Renewable Energy (50% of grid)', value=True)
+            },
+            'Data Center Efficiency Upgrade': {
+                'reduction': 18000,
+                'cost': 5000000,
+                'payback': 4,
+                'selected': st.checkbox('Data Center Efficiency Upgrade', value=True)
+            },
+            'Cloud Migration (30% workloads)': {
+                'reduction': 12000,
+                'cost': 8000000,
+                'payback': 8,
+                'selected': st.checkbox('Cloud Migration (30% workloads)', value=False)
+            },
+            'EV Fleet Transition': {
+                'reduction': 8000,
+                'cost': 3000000,
+                'payback': 5,
+                'selected': st.checkbox('EV Fleet Transition', value=True)
+            },
+            'Remote Work Policy (40% WFH)': {
+                'reduction': 6500,
+                'cost': 500000,
+                'payback': 1,
+                'selected': st.checkbox('Remote Work Policy (40% WFH)', value=True)
+            },
+            'Sustainable Procurement': {
+                'reduction': 4200,
+                'cost': 1000000,
+                'payback': 3,
+                'selected': st.checkbox('Sustainable Procurement', value=False)
+            }
+        }
     
     with col2:
-        st.markdown("#### Transportation & Travel")
+        st.markdown("#### AI Recommendations")
         
-        flight_reduction = st.slider(
-            "Business Flight Reduction (%)",
-            min_value=0, max_value=70, value=30, step=5,
-            help="Replace with virtual meetings"
-        )
+        st.success("""
+        **🎯 Optimal Scenario:**
+        - Renewable Energy (priority 1)
+        - Data Center Efficiency (priority 2)
+        - Remote Work Policy (priority 3)
+        - EV Fleet (priority 4)
         
-        ev_fleet = st.slider(
-            "Company Fleet EV Transition (%)",
-            min_value=0, max_value=100, value=25, step=5,
-            help="Replace combustion vehicles with EVs"
-        )
+        **Expected Outcomes:**
+        - 67,500 tons CO₂e reduction (29%)
+        - €20.5M total investment
+        - 4.8 years average payback
+        - €6.7M annual savings
+        - ROI: 33% over 10 years
+        """)
         
-        public_transport = st.slider(
-            "Employees Using Public Transport (%)",
-            min_value=0, max_value=80, value=40, step=5,
-            help="Incentivize public transportation"
-        )
-        
-        remote_work = st.slider(
-            "Remote Work Days per Week",
-            min_value=0, max_value=5, value=2, step=1,
-            help="Reduce commuting emissions"
-        )
+        st.info("""
+        **⚠️ Risk Factors:**
+        - Renewable energy availability in region
+        - Cloud migration complexity
+        - Employee acceptance of remote work
+        """)
     
     st.markdown("---")
     
-    # Calculate scenario impact
-    st.markdown("### Scenario Impact Analysis")
+    # Scenario comparison
+    selected_initiatives = {k: v for k, v in initiatives.items() if v['selected']}
     
-    # Calculate reductions
-    reductions = {
-        'Data Centers': baseline['Data Centers'] * (
-            (renewable_data_centers/100 * 0.9) + 
-            (server_efficiency/100 * 0.15) + 
-            (cooling_optimization/100 * 0.10)
-        ),
-        'Cloud Infrastructure': baseline['Cloud Infrastructure'] * (renewable_data_centers/100 * 0.8),
-        'Office Buildings': baseline['Office Buildings'] * (renewable_offices/100 * 0.85),
-        'Employee Commute': baseline['Employee Commute'] * (
-            (public_transport/100 * 0.7) + 
-            (remote_work/5 * 0.5) +
-            (ev_fleet/100 * 0.3)
-        ),
-        'Business Travel': baseline['Business Travel'] * (flight_reduction/100),
-        'Software Development': baseline['Software Development'] * (renewable_offices/100 * 0.6)
-    }
-    
-    new_emissions = {k: baseline[k] - reductions[k] for k in baseline}
-    total_reduction = sum(reductions.values())
-    new_total = sum(new_emissions.values())
-    
-    # Display results
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric(
-            "Total Reduction",
-            f"{total_reduction:,.0f} tons CO₂e",
-            f"-{(total_reduction/baseline_total*100):.1f}%"
-        )
-    
-    with col2:
-        st.metric(
-            "New Total Emissions",
-            f"{new_total:,.0f} tons CO₂e",
-            f"{new_total:,.0f}"
-        )
-    
-    with col3:
-        target_2030 = baseline_total * 0.7  # 30% reduction
-        progress = (baseline_total - new_total) / (baseline_total - target_2030) * 100
-        st.metric(
-            "Progress to 2030 Target",
-            f"{min(progress, 100):.1f}%",
-            "On Track" if progress >= 80 else "Below Target"
-        )
-    
-    st.markdown("---")
-    
-    # Visualization
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### Emissions Comparison")
+    if selected_initiatives:
+        st.markdown("### Scenario Results")
         
-        comparison_data = pd.DataFrame({
-            'Category': list(baseline.keys()) * 2,
-            'Emissions': list(baseline.values()) + list(new_emissions.values()),
-            'Scenario': ['Baseline']*6 + ['With Reductions']*6
+        total_reduction = sum(init['reduction'] for init in selected_initiatives.values())
+        total_cost = sum(init['cost'] for init in selected_initiatives.values())
+        
+        new_emissions = 234560 - total_reduction
+        reduction_percent = (total_reduction / 234560) * 100
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric(
+                "New Annual Emissions",
+                f"{new_emissions:,} tons",
+                f"-{reduction_percent:.1f}%",
+                delta_color="inverse"
+            )
+        
+        with col2:
+            st.metric(
+                "Total Investment",
+                f"€{total_cost/1000000:.1f}M"
+            )
+        
+        with col3:
+            annual_savings = (total_reduction * 100) / 1000000  # Assuming €100/ton carbon price
+            st.metric(
+                "Annual Savings",
+                f"€{annual_savings:.1f}M"
+            )
+        
+        with col4:
+            simple_payback = total_cost / (annual_savings * 1000000) if annual_savings > 0 else 0
+            st.metric(
+                "Simple Payback",
+                f"{simple_payback:.1f} years"
+            )
+        
+        # Visualization
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Emissions Reduction by Initiative")
+            
+            init_df = pd.DataFrame([
+                {'Initiative': k, 'Reduction (tons CO₂e)': v['reduction']}
+                for k, v in selected_initiatives.items()
+            ])
+            
+            fig = px.bar(init_df, x='Initiative', y='Reduction (tons CO₂e)', 
+                        color='Reduction (tons CO₂e)',
+                        color_continuous_scale='Greens')
+            fig.update_layout(height=350, xaxis_tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("#### Cost vs. Reduction")
+            
+            scatter_df = pd.DataFrame([
+                {
+                    'Initiative': k,
+                    'Investment (€M)': v['cost'] / 1000000,
+                    'Reduction (tons)': v['reduction'],
+                    'Payback (years)': v['payback']
+                }
+                for k, v in selected_initiatives.items()
+            ])
+            
+            fig = px.scatter(scatter_df, 
+                           x='Investment (€M)', 
+                           y='Reduction (tons)',
+                           size='Reduction (tons)',
+                           color='Payback (years)',
+                           hover_data=['Initiative'],
+                           color_continuous_scale='RdYlGn_r')
+            fig.update_layout(height=350)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # Timeline projection
+        st.markdown("### 5-Year Impact Projection")
+        
+        years = list(range(2024, 2029))
+        baseline_emissions = [234560 * (0.98 ** i) for i in range(5)]  # 2% natural reduction
+        scenario_emissions = [(234560 - total_reduction) * (0.98 ** i) for i in range(5)]
+        
+        projection_df = pd.DataFrame({
+            'Year': years,
+            'Baseline Scenario': baseline_emissions,
+            'With Selected Initiatives': scenario_emissions
         })
         
-        fig = px.bar(
-            comparison_data,
-            x='Category',
-            y='Emissions',
-            color='Scenario',
-            barmode='group',
-            title='',
-            color_discrete_map={'Baseline': '#CCCCCC', 'With Reductions': '#E4002B'}
-        )
-        fig.update_layout(height=400, xaxis_tickangle=-45)
+        fig = px.line(projection_df, x='Year', y=['Baseline Scenario', 'With Selected Initiatives'],
+                     title='', markers=True)
+        fig.update_layout(height=350, yaxis_title='Annual Emissions (tons CO₂e)')
         st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.markdown("#### Reduction by Initiative")
         
-        reduction_breakdown = pd.DataFrame({
-            'Initiative': ['Renewable Energy (DC)', 'Renewable Energy (Offices)', 
-                          'Server Efficiency', 'Cooling Optimization',
-                          'Flight Reduction', 'EV Fleet', 'Public Transport', 'Remote Work'],
-            'Reduction': [
-                baseline['Data Centers'] * (renewable_data_centers/100 * 0.9),
-                baseline['Office Buildings'] * (renewable_offices/100 * 0.85),
-                baseline['Data Centers'] * (server_efficiency/100 * 0.15),
-                baseline['Data Centers'] * (cooling_optimization/100 * 0.10),
-                baseline['Business Travel'] * (flight_reduction/100),
-                baseline['Employee Commute'] * (ev_fleet/100 * 0.3),
-                baseline['Employee Commute'] * (public_transport/100 * 0.7),
-                baseline['Employee Commute'] * (remote_work/5 * 0.5)
-            ]
-        }).sort_values('Reduction', ascending=True)
+        cumulative_reduction = sum(baseline_emissions[i] - scenario_emissions[i] for i in range(5))
+        st.success(f"**Cumulative 5-year reduction:** {cumulative_reduction:,.0f} tons CO₂e")
         
-        fig = px.bar(
-            reduction_breakdown,
-            x='Reduction',
-            y='Initiative',
-            orientation='h',
-            title='',
-            color='Reduction',
-            color_continuous_scale='Greens'
-        )
-        fig.update_layout(height=400, showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown("---")
+        
+        # Export scenario
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("Export Scenario Report", use_container_width=True):
+                st.success("Scenario report exported!")
+        
+        with col2:
+            if st.button("Send to Management", use_container_width=True):
+                st.info("Scenario sent to management team")
+        
+        with col3:
+            if st.button("Save Scenario", use_container_width=True):
+                st.success("Scenario saved!")
     
-    st.markdown("---")
-    
-    # Recommendations
-    st.markdown("### Strategic Recommendations")
-    
-    recommendations = []
-    
-    if renewable_data_centers < 50:
-        recommendations.append({
-            'Priority': 'HIGH',
-            'Action': 'Increase Renewable Energy for Data Centers',
-            'Impact': f'+{((50-renewable_data_centers)/100 * baseline["Data Centers"] * 0.9):,.0f} tons CO₂e reduction',
-            'Timeframe': '12-18 months'
-        })
-    
-    if flight_reduction < 40:
-        recommendations.append({
-            'Priority': 'MEDIUM',
-            'Action': 'Reduce Business Flights by 40%',
-            'Impact': f'+{((40-flight_reduction)/100 * baseline["Business Travel"]):,.0f} tons CO₂e reduction',
-            'Timeframe': '6-12 months'
-        })
-    
-    if remote_work < 3:
-        recommendations.append({
-            'Priority': 'MEDIUM',
-            'Action': 'Implement 3-day Remote Work Policy',
-            'Impact': f'+{((3-remote_work)/5 * baseline["Employee Commute"] * 0.5):,.0f} tons CO₂e reduction',
-            'Timeframe': '3-6 months'
-        })
-    
-    if server_efficiency < 30:
-        recommendations.append({
-            'Priority': 'HIGH',
-            'Action': 'Upgrade to High-Efficiency Servers',
-            'Impact': f'+{((30-server_efficiency)/100 * baseline["Data Centers"] * 0.15):,.0f} tons CO₂e reduction',
-            'Timeframe': '18-24 months'
-        })
-    
-    if recommendations:
-        rec_df = pd.DataFrame(recommendations)
-        st.dataframe(rec_df, use_container_width=True, height=200)
     else:
-        st.success("Excellent! Your scenario meets or exceeds all recommended targets.")
-    
-    st.markdown("---")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("Save Scenario", use_container_width=True):
-            st.success("Scenario saved!")
-    
-    with col2:
-        if st.button("Generate Report", use_container_width=True):
-            st.success("Detailed report generated!")
-    
-    with col3:
-        if st.button("Share with Leadership", use_container_width=True):
-            st.info("Scenario emailed to stakeholders")
+        st.warning("Select at least one initiative to see scenario results")
 
 # ============================================
 # PAGE 5: FINANCIAL ANALYSIS
 # ============================================
 elif "Financial Analysis" in page:
-    st.markdown('<div class="main-header">Financial Analysis</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">Cost-Effective GHG Reduction Analysis & ROI Calculator</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">Financial Analysis & ROI Calculator</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">Comprehensive financial modeling for sustainability initiatives</div>', unsafe_allow_html=True)
     
-    # Investment scenarios
-    st.markdown("### Reduction Investment Options")
+    st.info("""
+    **Financial Decision Support:** Calculate NPV, IRR, payback period, and sensitivity analysis 
+    for environmental investments.
+    """)
+    
+    # Initiative selection
+    st.markdown("### Select Initiatives for Financial Analysis")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("#### Select Initiatives")
-        
         initiatives = {
-            'Renewable Energy (Data Centers)': {
-                'cost': 2500000,
-                'reduction': 50000,
-                'payback': 5,
-                'selected': st.checkbox('Renewable Energy for Data Centers', value=True)
+            'Renewable Energy (50% of grid)': {
+                'reduction': 35000,
+                'cost': 12000000,
+                'payback': 6,
+                'selected': st.checkbox('Renewable Energy (50% of grid)', value=True, key='fin_renewable')
             },
-            'Server Efficiency Upgrade': {
-                'cost': 1800000,
-                'reduction': 15000,
+            'Data Center Efficiency Upgrade': {
+                'reduction': 18000,
+                'cost': 5000000,
                 'payback': 4,
-                'selected': st.checkbox('Upgrade to Efficient Servers', value=True)
+                'selected': st.checkbox('Data Center Efficiency Upgrade', value=True, key='fin_datacenter')
+            },
+            'Cloud Migration (30% workloads)': {
+                'reduction': 12000,
+                'cost': 8000000,
+                'payback': 8,
+                'selected': st.checkbox('Cloud Migration (30% workloads)', value=False, key='fin_cloud')
             },
             'EV Fleet Transition': {
-                'cost': 3200000,
-                'reduction': 4500,
-                'payback': 7,
-                'selected': st.checkbox('Transition to Electric Vehicles', value=False)
-            },
-            'Remote Work Infrastructure': {
-                'cost': 500000,
-                'reduction': 7800,
-                'payback': 2,
-                'selected': st.checkbox('Remote Work Technology', value=True)
-            },
-            'Building Energy Efficiency': {
-                'cost': 1200000,
-                'reduction': 18000,
-                'payback': 6,
-                'selected': st.checkbox('Office Building Upgrades', value=False)
-            },
-            'Carbon Offsets (Credits)': {
-                'cost': 200000,
-                'reduction': 20000,
-                'payback': 1,
-                'selected': st.checkbox('Purchase Carbon Offsets', value=False)
+                'reduction': 8000,
+                'cost': 3000000,
+                'payback': 5,
+                'selected': st.checkbox('EV Fleet Transition', value=True, key='fin_ev')
             }
         }
     
     with col2:
-        st.markdown("#### Cost Parameters")
+        st.markdown("#### Financial Parameters")
         
         carbon_price = st.number_input(
             "Carbon Price (€/ton CO₂e)",
             min_value=0,
-            max_value=200,
-            value=75,
-            step=5,
+            max_value=500,
+            value=100,
+            step=10,
             help="Current EU ETS price or internal carbon price"
         )
         
@@ -1373,9 +1523,12 @@ elif "Financial Analysis" in page:
 
 # Footer
 st.markdown("---")
-st.markdown("""
-<div style='text-align: center; color: #666; padding: 20px;'>
-    <p><strong> 🛡️ Check Point Software Technologies Environmental Compliance Platform</strong></p>
-    <p style='font-size: 0.9em;'>© 2025 Climaterix Technologies Ltd. | Demo Version 1.0</p>
-</div>
-""", unsafe_allow_html=True)
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.image("checkpiont_logo.png", width=200)
+    st.markdown("""
+    <div style='text-align: center; color: #666; padding: 20px;'>
+        <p><strong>🛡️ Check Point Software Technologies Environmental Compliance Platform</strong></p>
+        <p style='font-size: 0.9em;'>© 2025 Climaterix Technologies Ltd. | Demo Version 1.0</p>
+    </div>
+    """, unsafe_allow_html=True)
