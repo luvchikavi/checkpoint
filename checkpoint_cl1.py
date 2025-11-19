@@ -1332,9 +1332,9 @@ with tab4:
                 st.info("Scenario sent to management team")
         
         with col3:
-            if st.button("Save Scenario", use_container_width=True):
+            if st.button("Save Scenario", use_container_width=True, key="save_scenario_operations"):
                 st.success("Scenario saved!")
-    
+
     else:
         st.warning("Select at least one initiative to see scenario results")
 
@@ -1623,7 +1623,7 @@ with tab5:
                 st.info("Financial analysis emailed to CFO")
         
         with col3:
-            if st.button("Save Scenario", use_container_width=True):
+            if st.button("Save Scenario", use_container_width=True, key="save_scenario_financial"):
                 st.success("Financial scenario saved!")
     
     else:
