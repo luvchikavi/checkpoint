@@ -1124,170 +1124,164 @@ with tab4:
     
     st.markdown("---")
 
-    # Scenario selection with radio buttons
-    st.markdown("### Select Scenario")
+    # Interactive Scenario Builder with Sliders
+    st.markdown("### 🎛️ Adjust Initiative Parameters")
+    st.markdown("Use the sliders below to customize the scale of each initiative:")
 
-    # Define predefined scenarios
-    scenarios = {
-        'Conservative (Low Risk)': {
-            'initiatives': ['Remote Work Policy (40% WFH)', 'Sustainable Procurement', 'EV Fleet Transition'],
-            'description': 'Low investment, proven technologies, minimal operational disruption',
-            'total_reduction': 18700,
-            'total_cost': 4500000,
-            'risk_level': 'Low'
-        },
-        'Balanced (Recommended)': {
-            'initiatives': ['Renewable Energy (50% of grid)', 'Data Center Efficiency Upgrade',
-                           'Remote Work Policy (40% WFH)', 'EV Fleet Transition'],
-            'description': 'AI-recommended optimal balance of cost, impact, and feasibility',
-            'total_reduction': 67500,
-            'total_cost': 20500000,
-            'risk_level': 'Medium'
-        },
-        'Aggressive (High Impact)': {
-            'initiatives': ['Renewable Energy (50% of grid)', 'Data Center Efficiency Upgrade',
-                           'Cloud Migration (30% workloads)', 'EV Fleet Transition',
-                           'Remote Work Policy (40% WFH)', 'Sustainable Procurement'],
-            'description': 'Maximum emissions reduction, requires significant investment and change management',
-            'total_reduction': 83700,
-            'total_cost': 29000000,
-            'risk_level': 'High'
-        },
-        'Energy Focus': {
-            'initiatives': ['Renewable Energy (50% of grid)', 'Data Center Efficiency Upgrade'],
-            'description': 'Focused on energy efficiency and renewable sources',
-            'total_reduction': 53000,
-            'total_cost': 17000000,
-            'risk_level': 'Medium'
-        },
-        'Operational Efficiency': {
-            'initiatives': ['Data Center Efficiency Upgrade', 'Cloud Migration (30% workloads)',
-                           'Remote Work Policy (40% WFH)'],
-            'description': 'Optimize operations and infrastructure without major capital investments',
-            'total_reduction': 36500,
-            'total_cost': 13500000,
-            'risk_level': 'Low'
-        },
-        'Custom Scenario': {
-            'initiatives': [],
-            'description': 'Build your own scenario by selecting individual initiatives',
-            'total_reduction': 0,
-            'total_cost': 0,
-            'risk_level': 'Custom'
-        }
-    }
-
-    # Radio button for scenario selection
-    col1, col2 = st.columns([1, 2])
+    # Energy Initiatives
+    st.markdown("### ⚡ Energy Initiatives")
+    col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("#### Choose Scenario")
-        selected_scenario = st.radio(
-            "Select one scenario:",
-            list(scenarios.keys()),
-            index=1,  # Default to "Balanced (Recommended)"
-            key='scenario_radio'
+        st.markdown("#### 🌱 Renewable Energy")
+        renewable_pct = st.slider(
+            "Renewable Energy Adoption (%)",
+            min_value=0,
+            max_value=100,
+            value=50,
+            step=5,
+            key='renewable_slider',
+            help='Percentage of energy from renewable sources'
         )
+        st.caption(f"Investment: €{(renewable_pct/50 * 12):.1f}M | Reduction: {int(renewable_pct/50 * 35000):,} tons CO₂e")
 
     with col2:
-        st.markdown("#### Scenario Details")
-        scenario = scenarios[selected_scenario]
-
-        st.markdown(f"**{selected_scenario}**")
-        st.write(f"_{scenario['description']}_")
-
-        if selected_scenario != 'Custom Scenario':
-            st.markdown("**Included Initiatives:**")
-            for initiative in scenario['initiatives']:
-                st.markdown(f"- {initiative}")
-
-            # Risk indicator
-            risk_colors = {'Low': '🟢', 'Medium': '🟡', 'High': '🔴'}
-            st.markdown(f"**Risk Level:** {risk_colors[scenario['risk_level']]} {scenario['risk_level']}")
+        st.markdown("#### 🖥️ Data Center Efficiency")
+        datacenter_pct = st.slider(
+            "Efficiency Improvement (%)",
+            min_value=0,
+            max_value=100,
+            value=40,
+            step=5,
+            key='datacenter_slider',
+            help='Percentage improvement in data center efficiency'
+        )
+        st.caption(f"Investment: €{(datacenter_pct/40 * 5):.1f}M | Reduction: {int(datacenter_pct/40 * 18000):,} tons CO₂e")
 
     st.markdown("---")
 
-    # Initiative details for selected scenario
-    initiative_details = {
-        'Renewable Energy (50% of grid)': {'reduction': 35000, 'cost': 12000000, 'payback': 6},
-        'Data Center Efficiency Upgrade': {'reduction': 18000, 'cost': 5000000, 'payback': 4},
-        'Cloud Migration (30% workloads)': {'reduction': 12000, 'cost': 8000000, 'payback': 8},
-        'EV Fleet Transition': {'reduction': 8000, 'cost': 3000000, 'payback': 5},
-        'Remote Work Policy (40% WFH)': {'reduction': 6500, 'cost': 500000, 'payback': 1},
-        'Sustainable Procurement': {'reduction': 4200, 'cost': 1000000, 'payback': 3}
-    }
+    # Operational Initiatives
+    st.markdown("### 🚀 Operational Initiatives")
+    col1, col2 = st.columns(2)
 
-    # Custom Scenario Builder
-    if selected_scenario == 'Custom Scenario':
-        st.markdown("### 🛠️ Build Your Custom Scenario")
-        st.markdown("Select the initiatives you want to include in your scenario:")
+    with col1:
+        st.markdown("#### ☁️ Cloud Migration")
+        cloud_pct = st.slider(
+            "Workloads Migrated (%)",
+            min_value=0,
+            max_value=100,
+            value=30,
+            step=5,
+            key='cloud_slider',
+            help='Percentage of workloads migrated to cloud'
+        )
+        st.caption(f"Investment: €{(cloud_pct/30 * 8):.1f}M | Reduction: {int(cloud_pct/30 * 12000):,} tons CO₂e")
 
-        col1, col2, col3 = st.columns(3)
+    with col2:
+        st.markdown("#### 🏠 Remote Work Policy")
+        remote_pct = st.slider(
+            "Remote Work Adoption (%)",
+            min_value=0,
+            max_value=100,
+            value=40,
+            step=5,
+            key='remote_slider',
+            help='Percentage of employees working from home'
+        )
+        st.caption(f"Investment: €{(remote_pct/40 * 0.5):.1f}M | Reduction: {int(remote_pct/40 * 6500):,} tons CO₂e")
 
-        custom_selections = {}
+    st.markdown("---")
 
-        with col1:
-            st.markdown("#### 💡 Energy Initiatives")
-            custom_selections['Renewable Energy (50% of grid)'] = st.checkbox(
-                '🌱 Renewable Energy (50% of grid)',
-                value=False,
-                key='custom_renewable',
-                help='€12M investment, 35,000 tons reduction, 6 year payback'
-            )
-            custom_selections['Data Center Efficiency Upgrade'] = st.checkbox(
-                '🖥️ Data Center Efficiency Upgrade',
-                value=False,
-                key='custom_datacenter',
-                help='€5M investment, 18,000 tons reduction, 4 year payback'
-            )
+    # Transportation & Supply Chain
+    st.markdown("### 🚗 Transportation & Supply Chain")
+    col1, col2 = st.columns(2)
 
-        with col2:
-            st.markdown("#### 🚀 Operational Initiatives")
-            custom_selections['Cloud Migration (30% workloads)'] = st.checkbox(
-                '☁️ Cloud Migration (30% workloads)',
-                value=False,
-                key='custom_cloud',
-                help='€8M investment, 12,000 tons reduction, 8 year payback'
-            )
-            custom_selections['Remote Work Policy (40% WFH)'] = st.checkbox(
-                '🏠 Remote Work Policy (40% WFH)',
-                value=False,
-                key='custom_remote',
-                help='€0.5M investment, 6,500 tons reduction, 1 year payback'
-            )
+    with col1:
+        st.markdown("#### ⚡ EV Fleet Transition")
+        ev_pct = st.slider(
+            "Fleet Electrification (%)",
+            min_value=0,
+            max_value=100,
+            value=60,
+            step=5,
+            key='ev_slider',
+            help='Percentage of fleet converted to electric vehicles'
+        )
+        st.caption(f"Investment: €{(ev_pct/60 * 3):.1f}M | Reduction: {int(ev_pct/60 * 8000):,} tons CO₂e")
 
-        with col3:
-            st.markdown("#### 🚗 Transportation & Supply")
-            custom_selections['EV Fleet Transition'] = st.checkbox(
-                '⚡ EV Fleet Transition',
-                value=False,
-                key='custom_ev',
-                help='€3M investment, 8,000 tons reduction, 5 year payback'
-            )
-            custom_selections['Sustainable Procurement'] = st.checkbox(
-                '📦 Sustainable Procurement',
-                value=False,
-                key='custom_procurement',
-                help='€1M investment, 4,200 tons reduction, 3 year payback'
-            )
+    with col2:
+        st.markdown("#### 📦 Sustainable Procurement")
+        procurement_pct = st.slider(
+            "Sustainable Suppliers (%)",
+            min_value=0,
+            max_value=100,
+            value=50,
+            step=5,
+            key='procurement_slider',
+            help='Percentage of suppliers meeting sustainability criteria'
+        )
+        st.caption(f"Investment: €{(procurement_pct/50 * 1):.1f}M | Reduction: {int(procurement_pct/50 * 4200):,} tons CO₂e")
 
-        # Build selected initiatives dict from custom selections
-        selected_initiatives = {
-            name: {**initiative_details[name], 'selected': True}
-            for name, selected in custom_selections.items()
-            if selected
+    st.markdown("---")
+
+    # Calculate totals based on slider values
+    total_reduction = (
+        int(renewable_pct/50 * 35000) +
+        int(datacenter_pct/40 * 18000) +
+        int(cloud_pct/30 * 12000) +
+        int(remote_pct/40 * 6500) +
+        int(ev_pct/60 * 8000) +
+        int(procurement_pct/50 * 4200)
+    )
+
+    total_cost = (
+        (renewable_pct/50 * 12000000) +
+        (datacenter_pct/40 * 5000000) +
+        (cloud_pct/30 * 8000000) +
+        (remote_pct/40 * 500000) +
+        (ev_pct/60 * 3000000) +
+        (procurement_pct/50 * 1000000)
+    )
+
+    # Build selected_initiatives for compatibility with existing code
+    selected_initiatives = {}
+    if renewable_pct > 0:
+        selected_initiatives['Renewable Energy'] = {
+            'reduction': int(renewable_pct/50 * 35000),
+            'cost': renewable_pct/50 * 12000000,
+            'payback': 6
+        }
+    if datacenter_pct > 0:
+        selected_initiatives['Data Center Efficiency'] = {
+            'reduction': int(datacenter_pct/40 * 18000),
+            'cost': datacenter_pct/40 * 5000000,
+            'payback': 4
+        }
+    if cloud_pct > 0:
+        selected_initiatives['Cloud Migration'] = {
+            'reduction': int(cloud_pct/30 * 12000),
+            'cost': cloud_pct/30 * 8000000,
+            'payback': 8
+        }
+    if remote_pct > 0:
+        selected_initiatives['Remote Work'] = {
+            'reduction': int(remote_pct/40 * 6500),
+            'cost': remote_pct/40 * 500000,
+            'payback': 1
+        }
+    if ev_pct > 0:
+        selected_initiatives['EV Fleet'] = {
+            'reduction': int(ev_pct/60 * 8000),
+            'cost': ev_pct/60 * 3000000,
+            'payback': 5
+        }
+    if procurement_pct > 0:
+        selected_initiatives['Sustainable Procurement'] = {
+            'reduction': int(procurement_pct/50 * 4200),
+            'cost': procurement_pct/50 * 1000000,
+            'payback': 3
         }
 
-        if not selected_initiatives:
-            st.info("👆 Select at least one initiative above to build your custom scenario")
-    else:
-        # Build selected initiatives dict for predefined scenarios
-        selected_initiatives = {
-            name: {**details, 'selected': True}
-            for name, details in initiative_details.items()
-            if name in scenario['initiatives']
-        }
-    
     if selected_initiatives:
         st.markdown("### Scenario Results")
         
