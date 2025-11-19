@@ -17,7 +17,7 @@ st.set_page_config(
     page_title="Check Point Environmental Dashboard",
     page_icon="🔒",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # Custom CSS for branding
@@ -110,32 +110,33 @@ if 'lca_data' not in st.session_state:
 # Load data
 historical_data, products, facilities = get_checkpoint_data()
 
-# Sidebar navigation
-st.sidebar.image("checkpiont_logo.png", 
-                 width=200)
-st.sidebar.markdown("---")
-st.sidebar.markdown("### Environmental Compliance Platform")
+# Header with logo
+col1, col2, col3 = st.columns([1, 2, 1])
+with col1:
+    try:
+        st.image("checkpiont_logo.png", width=200)
+    except:
+        st.markdown("### 🔒 Check Point")
+with col2:
+    st.markdown('<div class="main-header" style="text-align: center;">Environmental Compliance Platform</div>', unsafe_allow_html=True)
+with col3:
+    st.markdown("")
 
-page = st.sidebar.radio(
-    "Navigation",
-    ["Dashboard", "LCA Calculator", "EPD Generator", "Operations Decision Tool", "Financial Analysis"],
-    key='navigation'
-)
+st.markdown("---")
 
-st.sidebar.markdown("---")
-st.sidebar.info("""
-**Check Point Software Technologies**  
-Leading Cybersecurity Solutions Provider
-
-100,000+ Organizations Protected  
-7,000+ Employees Worldwide  
-60+ Countries  
-""")
+# Top navigation using tabs
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📊 Dashboard",
+    "🔬 LCA Calculator",
+    "📄 EPD Generator",
+    "⚙️ Operations Decision Tool",
+    "💰 Financial Analysis"
+])
 
 # ============================================
-# PAGE 1: DASHBOARD
+# TAB 1: DASHBOARD
 # ============================================
-if "Dashboard" in page:
+with tab1:
     st.markdown('<div class="main-header">Check Point Environmental Dashboard</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Real-time GHG Emissions Tracking & Compliance Monitoring</div>', unsafe_allow_html=True)
     
@@ -223,10 +224,102 @@ if "Dashboard" in page:
         st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
-    
+
+    # GHG Emissions by Scope
+    st.subheader("GHG Emissions by Scope (GHG Protocol)")
+
+    col1, col2, col3 = st.columns(3)
+
+    # Calculate emissions by scope from current month data
+    current_month = historical_data.iloc[-1]
+
+    # Scope 1: Direct emissions (company-owned sources) - minimal for software company
+    scope1_emissions = 500  # Estimated company vehicles, generators, etc.
+
+    # Scope 2: Indirect emissions from purchased energy
+    scope2_emissions = (current_month['Data Centers'] +
+                       current_month['Cloud Infrastructure'] +
+                       current_month['Office Buildings'])
+
+    # Scope 3: Other indirect emissions
+    scope3_emissions = (current_month['Employee Commute'] +
+                       current_month['Business Travel'] +
+                       current_month['Software Development'])
+
+    with col1:
+        st.markdown("#### Scope 1: Direct Emissions")
+        st.metric(
+            "Company-Owned Sources",
+            f"{scope1_emissions:,.0f} tons CO₂e",
+            help="Direct GHG emissions from sources owned or controlled by the company"
+        )
+        st.caption("🚗 Fleet vehicles, emergency generators, refrigerants")
+
+    with col2:
+        st.markdown("#### Scope 2: Energy Indirect")
+        st.metric(
+            "Purchased Energy",
+            f"{scope2_emissions:,.0f} tons CO₂e",
+            help="Indirect emissions from purchased electricity, heat, and cooling"
+        )
+        st.caption("⚡ Data centers, offices, cloud infrastructure")
+
+    with col3:
+        st.markdown("#### Scope 3: Other Indirect")
+        st.metric(
+            "Value Chain Emissions",
+            f"{scope3_emissions:,.0f} tons CO₂e",
+            help="All other indirect emissions in the value chain"
+        )
+        st.caption("✈️ Business travel, commute, supply chain")
+
+    # Scope breakdown chart
+    st.markdown("#### Emissions Breakdown by Scope")
+
+    scope_data = pd.DataFrame({
+        'Scope': ['Scope 1\nDirect', 'Scope 2\nEnergy', 'Scope 3\nOther Indirect'],
+        'Emissions (tons CO₂e)': [scope1_emissions, scope2_emissions, scope3_emissions],
+        'Percentage': [
+            scope1_emissions / (scope1_emissions + scope2_emissions + scope3_emissions) * 100,
+            scope2_emissions / (scope1_emissions + scope2_emissions + scope3_emissions) * 100,
+            scope3_emissions / (scope1_emissions + scope2_emissions + scope3_emissions) * 100
+        ]
+    })
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        fig = px.bar(
+            scope_data,
+            x='Scope',
+            y='Emissions (tons CO₂e)',
+            color='Scope',
+            title='',
+            color_discrete_map={
+                'Scope 1\nDirect': '#E4002B',
+                'Scope 2\nEnergy': '#FFA07A',
+                'Scope 3\nOther Indirect': '#4ECDC4'
+            }
+        )
+        fig.update_layout(height=350, showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        fig = go.Figure(data=[go.Pie(
+            labels=scope_data['Scope'],
+            values=scope_data['Emissions (tons CO₂e)'],
+            hole=0.4,
+            marker=dict(colors=['#E4002B', '#FFA07A', '#4ECDC4']),
+            textinfo='label+percent'
+        )])
+        fig.update_layout(height=350)
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("---")
+
     # Charts Row 2
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader("Facility Energy Consumption")
         
@@ -293,9 +386,9 @@ if "Dashboard" in page:
         st.success("**✅ Achievements**\n- 12% emissions reduction YoY\n- 3 new EPDs published\n- 94% CBAM compliance")
 
 # ============================================
-# PAGE 2: LCA CALCULATOR
+# TAB 2: LCA CALCULATOR
 # ============================================
-elif "LCA Calculator" in page:
+with tab2:
     st.markdown('<div class="main-header">Life Cycle Assessment Calculator</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Calculate environmental impacts across product lifecycle</div>', unsafe_allow_html=True)
     
@@ -851,9 +944,9 @@ elif "LCA Calculator" in page:
                 st.rerun()
 
 # ============================================
-# PAGE 3: EPD GENERATOR
+# TAB 3: EPD GENERATOR
 # ============================================
-elif "EPD Generator" in page:
+with tab3:
     st.markdown('<div class="main-header">EPD Generator</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Create Environmental Product Declarations</div>', unsafe_allow_html=True)
     
@@ -1004,9 +1097,9 @@ elif "EPD Generator" in page:
         st.write("✅ ECO Platform member")
 
 # ============================================
-# PAGE 4: OPERATIONS DECISION TOOL
+# TAB 4: OPERATIONS DECISION TOOL
 # ============================================
-elif "Operations Decision Tool" in page:
+with tab4:
     st.markdown('<div class="main-header">Operations Decision Support Tool</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Scenario analysis for emissions reduction initiatives</div>', unsafe_allow_html=True)
     
@@ -1030,83 +1123,98 @@ elif "Operations Decision Tool" in page:
         st.metric("Total Cost", "€52M/year")
     
     st.markdown("---")
-    
-    # Scenario builder
-    st.markdown("### Build Scenarios")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### Initiative Selection")
-        
-        initiatives = {
-            'Renewable Energy (50% of grid)': {
-                'reduction': 35000,
-                'cost': 12000000,
-                'payback': 6,
-                'selected': st.checkbox('Renewable Energy (50% of grid)', value=True)
-            },
-            'Data Center Efficiency Upgrade': {
-                'reduction': 18000,
-                'cost': 5000000,
-                'payback': 4,
-                'selected': st.checkbox('Data Center Efficiency Upgrade', value=True)
-            },
-            'Cloud Migration (30% workloads)': {
-                'reduction': 12000,
-                'cost': 8000000,
-                'payback': 8,
-                'selected': st.checkbox('Cloud Migration (30% workloads)', value=False)
-            },
-            'EV Fleet Transition': {
-                'reduction': 8000,
-                'cost': 3000000,
-                'payback': 5,
-                'selected': st.checkbox('EV Fleet Transition', value=True)
-            },
-            'Remote Work Policy (40% WFH)': {
-                'reduction': 6500,
-                'cost': 500000,
-                'payback': 1,
-                'selected': st.checkbox('Remote Work Policy (40% WFH)', value=True)
-            },
-            'Sustainable Procurement': {
-                'reduction': 4200,
-                'cost': 1000000,
-                'payback': 3,
-                'selected': st.checkbox('Sustainable Procurement', value=False)
-            }
+
+    # Scenario selection with radio buttons
+    st.markdown("### Select Scenario")
+
+    # Define predefined scenarios
+    scenarios = {
+        'Conservative (Low Risk)': {
+            'initiatives': ['Remote Work Policy (40% WFH)', 'Sustainable Procurement', 'EV Fleet Transition'],
+            'description': 'Low investment, proven technologies, minimal operational disruption',
+            'total_reduction': 18700,
+            'total_cost': 4500000,
+            'risk_level': 'Low'
+        },
+        'Balanced (Recommended)': {
+            'initiatives': ['Renewable Energy (50% of grid)', 'Data Center Efficiency Upgrade',
+                           'Remote Work Policy (40% WFH)', 'EV Fleet Transition'],
+            'description': 'AI-recommended optimal balance of cost, impact, and feasibility',
+            'total_reduction': 67500,
+            'total_cost': 20500000,
+            'risk_level': 'Medium'
+        },
+        'Aggressive (High Impact)': {
+            'initiatives': ['Renewable Energy (50% of grid)', 'Data Center Efficiency Upgrade',
+                           'Cloud Migration (30% workloads)', 'EV Fleet Transition',
+                           'Remote Work Policy (40% WFH)', 'Sustainable Procurement'],
+            'description': 'Maximum emissions reduction, requires significant investment and change management',
+            'total_reduction': 83700,
+            'total_cost': 29000000,
+            'risk_level': 'High'
+        },
+        'Energy Focus': {
+            'initiatives': ['Renewable Energy (50% of grid)', 'Data Center Efficiency Upgrade'],
+            'description': 'Focused on energy efficiency and renewable sources',
+            'total_reduction': 53000,
+            'total_cost': 17000000,
+            'risk_level': 'Medium'
+        },
+        'Operational Efficiency': {
+            'initiatives': ['Data Center Efficiency Upgrade', 'Cloud Migration (30% workloads)',
+                           'Remote Work Policy (40% WFH)'],
+            'description': 'Optimize operations and infrastructure without major capital investments',
+            'total_reduction': 36500,
+            'total_cost': 13500000,
+            'risk_level': 'Low'
         }
-    
+    }
+
+    # Radio button for scenario selection
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        st.markdown("#### Choose Scenario")
+        selected_scenario = st.radio(
+            "Select one scenario:",
+            list(scenarios.keys()),
+            index=1,  # Default to "Balanced (Recommended)"
+            key='scenario_radio'
+        )
+
     with col2:
-        st.markdown("#### AI Recommendations")
-        
-        st.success("""
-        **🎯 Optimal Scenario:**
-        - Renewable Energy (priority 1)
-        - Data Center Efficiency (priority 2)
-        - Remote Work Policy (priority 3)
-        - EV Fleet (priority 4)
-        
-        **Expected Outcomes:**
-        - 67,500 tons CO₂e reduction (29%)
-        - €20.5M total investment
-        - 4.8 years average payback
-        - €6.7M annual savings
-        - ROI: 33% over 10 years
-        """)
-        
-        st.info("""
-        **⚠️ Risk Factors:**
-        - Renewable energy availability in region
-        - Cloud migration complexity
-        - Employee acceptance of remote work
-        """)
-    
+        st.markdown("#### Scenario Details")
+        scenario = scenarios[selected_scenario]
+
+        st.markdown(f"**{selected_scenario}**")
+        st.write(f"_{scenario['description']}_")
+
+        st.markdown("**Included Initiatives:**")
+        for initiative in scenario['initiatives']:
+            st.markdown(f"- {initiative}")
+
+        # Risk indicator
+        risk_colors = {'Low': '🟢', 'Medium': '🟡', 'High': '🔴'}
+        st.markdown(f"**Risk Level:** {risk_colors[scenario['risk_level']]} {scenario['risk_level']}")
+
     st.markdown("---")
-    
-    # Scenario comparison
-    selected_initiatives = {k: v for k, v in initiatives.items() if v['selected']}
+
+    # Initiative details for selected scenario
+    initiative_details = {
+        'Renewable Energy (50% of grid)': {'reduction': 35000, 'cost': 12000000, 'payback': 6},
+        'Data Center Efficiency Upgrade': {'reduction': 18000, 'cost': 5000000, 'payback': 4},
+        'Cloud Migration (30% workloads)': {'reduction': 12000, 'cost': 8000000, 'payback': 8},
+        'EV Fleet Transition': {'reduction': 8000, 'cost': 3000000, 'payback': 5},
+        'Remote Work Policy (40% WFH)': {'reduction': 6500, 'cost': 500000, 'payback': 1},
+        'Sustainable Procurement': {'reduction': 4200, 'cost': 1000000, 'payback': 3}
+    }
+
+    # Build selected initiatives dict
+    selected_initiatives = {
+        name: {**details, 'selected': True}
+        for name, details in initiative_details.items()
+        if name in scenario['initiatives']
+    }
     
     if selected_initiatives:
         st.markdown("### Scenario Results")
@@ -1231,9 +1339,9 @@ elif "Operations Decision Tool" in page:
         st.warning("Select at least one initiative to see scenario results")
 
 # ============================================
-# PAGE 5: FINANCIAL ANALYSIS
+# TAB 5: FINANCIAL ANALYSIS
 # ============================================
-elif "Financial Analysis" in page:
+with tab5:
     st.markdown('<div class="main-header">Financial Analysis & ROI Calculator</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Comprehensive financial modeling for sustainability initiatives</div>', unsafe_allow_html=True)
     
