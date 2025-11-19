@@ -1167,6 +1167,13 @@ with tab4:
             'total_reduction': 36500,
             'total_cost': 13500000,
             'risk_level': 'Low'
+        },
+        'Custom Scenario': {
+            'initiatives': [],
+            'description': 'Build your own scenario by selecting individual initiatives',
+            'total_reduction': 0,
+            'total_cost': 0,
+            'risk_level': 'Custom'
         }
     }
 
@@ -1189,13 +1196,14 @@ with tab4:
         st.markdown(f"**{selected_scenario}**")
         st.write(f"_{scenario['description']}_")
 
-        st.markdown("**Included Initiatives:**")
-        for initiative in scenario['initiatives']:
-            st.markdown(f"- {initiative}")
+        if selected_scenario != 'Custom Scenario':
+            st.markdown("**Included Initiatives:**")
+            for initiative in scenario['initiatives']:
+                st.markdown(f"- {initiative}")
 
-        # Risk indicator
-        risk_colors = {'Low': '🟢', 'Medium': '🟡', 'High': '🔴'}
-        st.markdown(f"**Risk Level:** {risk_colors[scenario['risk_level']]} {scenario['risk_level']}")
+            # Risk indicator
+            risk_colors = {'Low': '🟢', 'Medium': '🟡', 'High': '🔴'}
+            st.markdown(f"**Risk Level:** {risk_colors[scenario['risk_level']]} {scenario['risk_level']}")
 
     st.markdown("---")
 
@@ -1209,12 +1217,76 @@ with tab4:
         'Sustainable Procurement': {'reduction': 4200, 'cost': 1000000, 'payback': 3}
     }
 
-    # Build selected initiatives dict
-    selected_initiatives = {
-        name: {**details, 'selected': True}
-        for name, details in initiative_details.items()
-        if name in scenario['initiatives']
-    }
+    # Custom Scenario Builder
+    if selected_scenario == 'Custom Scenario':
+        st.markdown("### 🛠️ Build Your Custom Scenario")
+        st.markdown("Select the initiatives you want to include in your scenario:")
+
+        col1, col2, col3 = st.columns(3)
+
+        custom_selections = {}
+
+        with col1:
+            st.markdown("#### 💡 Energy Initiatives")
+            custom_selections['Renewable Energy (50% of grid)'] = st.checkbox(
+                '🌱 Renewable Energy (50% of grid)',
+                value=False,
+                key='custom_renewable',
+                help='€12M investment, 35,000 tons reduction, 6 year payback'
+            )
+            custom_selections['Data Center Efficiency Upgrade'] = st.checkbox(
+                '🖥️ Data Center Efficiency Upgrade',
+                value=False,
+                key='custom_datacenter',
+                help='€5M investment, 18,000 tons reduction, 4 year payback'
+            )
+
+        with col2:
+            st.markdown("#### 🚀 Operational Initiatives")
+            custom_selections['Cloud Migration (30% workloads)'] = st.checkbox(
+                '☁️ Cloud Migration (30% workloads)',
+                value=False,
+                key='custom_cloud',
+                help='€8M investment, 12,000 tons reduction, 8 year payback'
+            )
+            custom_selections['Remote Work Policy (40% WFH)'] = st.checkbox(
+                '🏠 Remote Work Policy (40% WFH)',
+                value=False,
+                key='custom_remote',
+                help='€0.5M investment, 6,500 tons reduction, 1 year payback'
+            )
+
+        with col3:
+            st.markdown("#### 🚗 Transportation & Supply")
+            custom_selections['EV Fleet Transition'] = st.checkbox(
+                '⚡ EV Fleet Transition',
+                value=False,
+                key='custom_ev',
+                help='€3M investment, 8,000 tons reduction, 5 year payback'
+            )
+            custom_selections['Sustainable Procurement'] = st.checkbox(
+                '📦 Sustainable Procurement',
+                value=False,
+                key='custom_procurement',
+                help='€1M investment, 4,200 tons reduction, 3 year payback'
+            )
+
+        # Build selected initiatives dict from custom selections
+        selected_initiatives = {
+            name: {**initiative_details[name], 'selected': True}
+            for name, selected in custom_selections.items()
+            if selected
+        }
+
+        if not selected_initiatives:
+            st.info("👆 Select at least one initiative above to build your custom scenario")
+    else:
+        # Build selected initiatives dict for predefined scenarios
+        selected_initiatives = {
+            name: {**details, 'selected': True}
+            for name, details in initiative_details.items()
+            if name in scenario['initiatives']
+        }
     
     if selected_initiatives:
         st.markdown("### Scenario Results")
